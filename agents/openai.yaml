@@ -1,0 +1,4 @@
+interface:
+  display_name: "App Store Submission"
+  short_description: "Prepare and validate cross-platform app-store releases"
+  default_prompt: "Use $app-store-submission-skill to inspect this mobile app, identify human-owned store setup, run release preflight, verify artifacts, and generate a submission packet."

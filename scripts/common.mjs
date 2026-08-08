@@ -96,6 +96,7 @@ export function normalizeProfile(profile, profilePath) {
       androidAab: 'build/app/outputs/bundle/release/app-release.aab',
     },
     signing: profile.signing,
+    store: profile.store || { appleAppId: null, playPackageName: null, urls: {} },
     monetization: { admob: { ...legacyAdmob, enabled: legacyAdmobEnabled }, iap: { enabled: Boolean(iap.products?.length), products: iap.products || [] } },
     validation: { commands: profile.validation?.requiredCommands || [], requiresCleanTreeForProduction: true },
   };

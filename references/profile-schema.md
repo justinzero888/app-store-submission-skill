@@ -56,6 +56,14 @@ The release profile is app-owned configuration. Keep it small, explicit, and fre
       "exportMethod": "app-store"
     }
   },
+  "store": {
+    "appleAppId": "id6782447247",
+    "playPackageName": "com.example.app",
+    "urls": {
+      "ios": "https://apps.apple.com/us/app/example/id6782447247",
+      "android": "https://play.google.com/store/apps/details?id=com.example.app"
+    }
+  },
   "monetization": {
     "admob": {
       "enabled": false,
@@ -87,10 +95,47 @@ IAP product entries use:
 {
   "productId": "com.example.app.remove_ads",
   "kind": "non_consumable",
-  "entitlement": "ads_removed",
+  "entitlements": ["ads_removed"],
   "status": "planned",
   "platforms": ["ios", "android"]
 }
 ```
 
+`kind` is one of `consumable`, `non_consumable`, or `subscription`. Subscriptions carry an
+extra `subscription` object:
+
+```json
+{
+  "productId": "com.example.app.premium",
+  "kind": "subscription",
+  "entitlements": ["ads_removed", "premium"],
+  "status": "planned",
+  "platforms": ["ios", "android"],
+  "subscription": {
+    "duration": "1m",
+    "iosGroup": "premium",
+    "androidBasePlanId": "premium_monthly"
+  }
+}
+```
+
+- `duration`: `1w`, `1m`, `3m`, `6m`, `1y`.
+- `iosGroup`: App Store Connect subscription group id (all auto-renewable tiers for the same
+  product must share a group).
+- `androidBasePlanId`: Google Play base plan id; purchase option (offer) ids use hyphens, never
+  underscores.
+
+A single subscription product may gate multiple entitlements (e.g. `ads_removed` + `premium`),
+so `entitlements` is a list. Legacy `entitlement` (singular string) is still accepted and
+normalized to `[entitlement]`.
+
 Use `planned`, `active`, or `retired`. `--iap-enabled` must reject any non-`active` product.
+
+### Store records (multi-app / v1+v2)
+
+The `store` block declares the *store-record* identifiers — the Apple App ID (with `id` prefix)
+and the Play package name that the app is published under. This lets one machine hold profiles
+for several apps (e.g. a live v1 and an unreleased v2) and preflight detects **store-record
+drift**: a profile whose `store.playPackageName` disagrees with `app.androidApplicationId`, or
+store URLs that point at a different app's listing, is flagged so a release is never pushed to
+the wrong store record.

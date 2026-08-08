@@ -62,14 +62,44 @@ if (admob?.enabled) {
 
 const products = profile.monetization?.iap?.products || [];
 const productIds = new Set();
+const entitlements = new Set();
 for (const product of products) {
   assert(!productIds.has(product.productId), `duplicate IAP product ID: ${product.productId}`, errors);
   productIds.add(product.productId);
   assert(typeof product.productId === 'string' && /^[A-Za-z0-9]+(?:\.[A-Za-z0-9_-]+)+$/.test(product.productId), `invalid IAP product ID: ${product.productId}`, errors);
+  assert(['consumable', 'non_consumable', 'subscription'].includes(product.kind), `invalid IAP kind for ${product.productId}: ${product.kind}`, errors);
   assert(['planned', 'active', 'retired'].includes(product.status), `invalid IAP status: ${product.productId}`, errors);
+  const productEntitlements = Array.isArray(product.entitlements)
+    ? product.entitlements
+    : (product.entitlement ? [product.entitlement] : []);
+  assert(productEntitlements.length > 0, `IAP product ${product.productId} has no entitlements`, errors);
+  for (const entitlement of productEntitlements) {
+    if (product.status === 'active' && entitlements.has(entitlement)) warnings.push(`IAP entitlement '${entitlement}' is shared by more than one active product; confirm this is intended`);
+    entitlements.add(entitlement);
+  }
+  if (product.kind === 'subscription') {
+    const sub = product.subscription;
+    const onIos = !product.platforms || product.platforms.includes('ios');
+    const onAndroid = !product.platforms || product.platforms.includes('android');
+    assert(sub && /^(\d+)(w|m|y)$/.test(sub.duration || ''), `subscription ${product.productId} needs a duration (1w/1m/3m/6m/1y)`, errors);
+    assert(sub?.iosGroup || !onIos, `subscription ${product.productId} is on iOS but has no App Store Connect subscription group (iosGroup)`, errors);
+    assert(sub?.androidBasePlanId || !onAndroid, `subscription ${product.productId} is on Android but has no Google Play base plan (androidBasePlanId)`, errors);
+  }
   if (args['iap-enabled'] && product.status !== 'active') errors.push(`IAP enabled but ${product.productId} is ${product.status}`);
 }
 if (args['iap-enabled']) assert(profile.monetization?.iap?.enabled === true, 'IAP was requested but profile.monetization.iap.enabled is false', errors);
+
+const store = profile.store;
+if (store) {
+  if (store.playPackageName && profile.app?.androidApplicationId && store.playPackageName !== profile.app.androidApplicationId) {
+    errors.push(`store-record drift: Play package '${store.playPackageName}' does not match Android application id '${profile.app.androidApplicationId}'`);
+  }
+  if (store.appleAppId && profile.app?.iosBundleId) {
+    const urls = store.urls || {};
+    if (urls.ios && !urls.ios.includes(store.appleAppId)) errors.push(`store-record drift: iOS store URL does not contain the declared Apple App ID ${store.appleAppId}`);
+    if (urls.android && !urls.android.includes(store.playPackageName || profile.app.androidApplicationId || 'no-package')) errors.push('store-record drift: Android store URL does not contain the declared Play package name');
+  }
+}
 
 if (appCheck) {
   checkFile(profile.paths.pubspec, 'pubspec', true);

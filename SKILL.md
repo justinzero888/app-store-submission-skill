@@ -37,6 +37,7 @@ The profile should contain:
 - Artifact paths and validation commands.
 - Android key-properties/keystore paths and alias; never passwords or private keys.
 - iOS team/export configuration references; never signing certificates or credentials.
+- Store-record identifiers (`store.appleAppId`, `store.playPackageName`, store URLs) used to detect drift between the build identifiers and the live store listing — essential when the same repo builds both a live v1 and an unreleased v2 app.
 - Optional AdMob application IDs, banner units, test units, consent/ATT rules, and app-ads.txt host.
 - Optional IAP products, entitlement names, platform coverage, and lifecycle status.
 - Store metadata URLs and a human handoff list.
@@ -102,11 +103,12 @@ If AdMob is enabled:
 If IAP is enabled:
 
 - Use product IDs only from the profile; never hardcode a new ID in UI code.
+- Products support `consumable`, `non_consumable`, and `subscription` kinds. Subscriptions must declare a duration, an App Store Connect subscription group (`iosGroup`), and a Google Play base plan (`androidBasePlanId`); all auto-renewable tiers of one product share a group.
+- One product can gate several entitlements (e.g. `ads_removed` + `premium`); list them in `entitlements`. Keep products `planned` until both stores, implementation, restore, and physical-device tests are complete; preflight rejects non-`active` products under `--iap-enabled`.
 - Human creates products, prices, availability, review metadata, and support paths in each store.
 - The app must handle unavailable, pending, cancelled, failed, purchased, restored, and already-owned states.
 - Verify the transaction, finish/acknowledge it, and recompute entitlements on app start and restore. A local entitlement cache is not proof of ownership.
 - Keep the app usable when stores are unavailable. Do not tie competition fairness or ranked eligibility to purchase ownership.
-- Keep products `planned` until both stores, implementation, restore, and physical-device tests are complete.
 
 ## Signing and safety
 

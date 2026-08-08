@@ -41,7 +41,8 @@ const keyProperties = readIfExists(path.join(appRoot, keyPropertiesPath));
 const adConfigPath = firstExisting(['lib/src/app/ad_mob_config.dart', 'lib/ad_mob_config.dart']);
 const adConfig = readIfExists(path.join(appRoot, adConfigPath));
 const hasAdMobDependency = /^\s+google_mobile_ads:/m.test(pubspec || '');
-const hasIapDependency = /^\s+in_app_purchase:/m.test(pubspec || '');
+const hasIapDependency = /^\s+(in_app_purchase|purchases_flutter|revenuecat):/m.test(pubspec || '');
+const hasSubscriptionApi = /^\s+(purchases_flutter|subscriptions_flutter):/m.test(pubspec || '');
 const version = match(pubspec, /^version:\s*([^\s#]+)/m);
 const displayName = match(iosInfo, /<key>CFBundleDisplayName<\/key>\s*<string>([^<]+)<\/string>/) || null;
 const iosBundleIds = [...(iosProject || '').matchAll(/PRODUCT_BUNDLE_IDENTIFIER\s*=\s*([^;]+);/g)].map((entry) => entry[1].trim());
@@ -63,6 +64,7 @@ if (!iosBundleId) warnings.push('iOS bundle ID was not inferred; confirm the Xco
 if (!androidApplicationId) warnings.push('Android application ID was not inferred; confirm the Gradle project/profile.');
 if (hasAdMobDependency && (!iosAdMobApplicationId || !androidAdMobApplicationId)) warnings.push('AdMob dependency found but one or more application IDs were not inferred.');
 if (hasIapDependency) warnings.push('IAP dependency found, but product IDs cannot be inferred from app code; add them manually to the profile.');
+if (hasSubscriptionApi) warnings.push('Subscription IAP detected; add duration, iOS subscription group, and Android base plan per product.');
 if (!fs.existsSync(path.join(appRoot, keyPropertiesPath))) warnings.push('Android key.properties is not present; this is expected until signing is configured.');
 
 const profile = {
@@ -101,6 +103,11 @@ const profile = {
   signing: {
     android: { keyAlias: androidKeyAlias, secretKeys: ['storePassword', 'keyPassword'] },
     ios: { teamId: match(iosProject, /DEVELOPMENT_TEAM\s*=\s*([^;]+);/), exportMethod: 'app-store' },
+  },
+  store: {
+    appleAppId: null,
+    playPackageName: androidApplicationId,
+    urls: { ios: null, android: null },
   },
   monetization: {
     admob: {

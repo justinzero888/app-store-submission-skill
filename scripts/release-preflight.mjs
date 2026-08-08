@@ -88,7 +88,7 @@ if (appCheck) {
   const strictSigning = channel === 'production' || Boolean(args['verify-signing']);
   checkFile(profile.paths.androidKeyProperties, 'Android key.properties', strictSigning);
   checkFile(profile.paths.androidKeystore, 'Android upload keystore', strictSigning);
-  if (strictSigning) checkFile(profile.paths.iosExportOptions, 'iOS export options', true);
+  if (strictSigning && profile.paths.iosExportOptions) checkFile(profile.paths.iosExportOptions, 'iOS export options', true);
   if (profile.paths.androidKeyProperties && profile.signing?.android?.keyAlias) checkText(profile.paths.androidKeyProperties, `keyAlias=${profile.signing.android.keyAlias}`, 'Android key.properties');
   const gradle = readIfExists(resolvePath(appRoot, profile.paths.androidGradle));
   if (channel === 'production') {

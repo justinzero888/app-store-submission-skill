@@ -12,6 +12,10 @@ The release profile is app-owned configuration. Keep it small, explicit, and fre
 >   (`if (keystorePropertiesFile.exists()) release else debug`) is present **and**
 >   the keystore + `key.properties` actually exist; only an unconditional debug
 >   signingConfig (or a fallback with missing key material) blocks production.
+> - `paths.iosExportOptions` is **optional**: set it to the `ExportOptions.plist`
+>   path only when the app manages its own export options. Leave it `null` for
+>   `flutter build ipa` automatic signing; preflight then skips the export-options
+>   file check.
 
 ```json
 {

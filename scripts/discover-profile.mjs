@@ -90,7 +90,11 @@ const profile = {
     androidManifest: androidManifestPath,
     androidGradle: androidGradlePath,
     androidKeyProperties: keyPropertiesPath,
-    androidKeystore: androidStoreFile ? (path.isAbsolute(androidStoreFile) ? androidStoreFile : path.join('android', androidStoreFile)) : 'android/app/upload-keystore.jks',
+    androidKeystore: androidStoreFile
+      ? (path.isAbsolute(androidStoreFile)
+          ? androidStoreFile
+          : path.posix.join('android', 'app', androidStoreFile))
+      : 'android/app/upload-keystore.jks',
     iosIpa: iosIpa ? path.join('build/ios/ipa', iosIpa) : 'build/ios/ipa/app.ipa',
     androidAab: androidAab ? path.join('build/app/outputs/bundle/release', androidAab) : 'build/app/outputs/bundle/release/app-release.aab',
   },
@@ -111,7 +115,9 @@ const profile = {
     iap: { enabled: hasIapDependency, products: [] },
   },
   validation: {
-    commands: fs.existsSync(path.join(appRoot, 'scripts/run_validation.sh')) ? ['scripts/run_validation.sh'] : [],
+    commands: fs.existsSync(path.join(appRoot, 'scripts/run_validation.sh'))
+      ? ['scripts/run_validation.sh']
+      : (pubspec ? ['flutter analyze --no-pub', 'flutter test'] : []),
     requiresCleanTreeForProduction: true,
   },
   discovery: { warnings },

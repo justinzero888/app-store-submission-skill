@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import {
   gitSnapshot,
   normalizeProfile,
@@ -24,6 +25,15 @@ const buildCommands = profile.buildCommands || (profile.app?.framework === 'flut
   ios: `flutter build ipa --release --build-name=${version} --build-number=${build}`,
   android: `flutter build appbundle --release --build-name=${version} --build-number=${build}`,
 } : { ios: null, android: null });
+
+function sha256Of(filePath) {
+  if (!filePath || !fs.existsSync(filePath)) return null;
+  return createHash('sha256').update(fs.readFileSync(filePath)).digest('hex');
+}
+
+const iosIpaPath = profile.paths?.iosIpa ? resolvePath(appRoot, profile.paths.iosIpa) : null;
+const androidAabPath = profile.paths?.androidAab ? resolvePath(appRoot, profile.paths.androidAab) : null;
+
 const packet = {
   schemaVersion: 1,
   generatedAt: new Date().toISOString(),
@@ -32,8 +42,10 @@ const packet = {
   app: profile.app,
   release: { version, build, channel, commit: git.commit, dirty: git.dirty },
   artifacts: {
-    iosIpa: profile.paths?.iosIpa ? resolvePath(appRoot, profile.paths.iosIpa) : null,
-    androidAab: profile.paths?.androidAab ? resolvePath(appRoot, profile.paths.androidAab) : null,
+    iosIpa: iosIpaPath,
+    androidAab: androidAabPath,
+    iosIpaSha256: sha256Of(iosIpaPath),
+    androidAabSha256: sha256Of(androidAabPath),
   },
   validation: profile.validation?.commands || [],
   buildCommands,
@@ -51,7 +63,7 @@ const lines = [
   `# ${profile.app?.displayName || 'App'} release packet`, '',
   `- Channel: ${channel}`, `- Version/build: ${version} (${build})`, `- Commit: ${git.commit || 'unknown'}`,
   `- Working tree: ${git.dirty ? 'DIRTY — do not upload' : 'clean'}`, `- Profile: ${resolved.path}`, '',
-  '## Artifacts', '', `- iOS IPA: ${packet.artifacts.iosIpa || 'not configured'}`, `- Android AAB: ${packet.artifacts.androidAab || 'not configured'}`, '',
+  '## Artifacts', '', `- iOS IPA: ${packet.artifacts.iosIpa || 'not configured'}`, `  - SHA-256: ${packet.artifacts.iosIpaSha256 || 'n/a'}`, `- Android AAB: ${packet.artifacts.androidAab || 'not configured'}`, `  - SHA-256: ${packet.artifacts.androidAabSha256 || 'n/a'}`, '',
   '## Validation commands', '', ...packet.validation.map((command) => `- \`${command}\``), '',
   '## Build commands', '', `- iOS: ${packet.buildCommands.ios || 'not configured'}`, `- Android: ${packet.buildCommands.android || 'not configured'}`, '',
   '## Human gates', '', ...packet.humanGates.map((gate) => `- [ ] ${gate}`), '',

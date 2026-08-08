@@ -91,6 +91,7 @@ Use [`references/profile-schema.md`](references/profile-schema.md) for the schem
 If AdMob is enabled:
 
 - Debug uses Google test units; release tries the platform production unit first.
+- Preflight blocks the production channel if `applicationIds`/`bannerUnitIds` still use Google's test prefix (`ca-app-pub-3940256099942544`) and fails if iOS `NSUserTrackingUsageDescription` is missing or empty.
 - A production no-fill may use a Google test creative for that request, then a fresh request retries production. This lets one binary transition from pre-approval/no-fill to live fill without rebuilding.
 - UMP consent and iOS ATT must complete before ad requests. Active gameplay must remain ad-free if the profile says so.
 - The human creates/links AdMob app and ad units, owns the publisher account, publishes `app-ads.txt`, and aligns the verified website URL across stores.

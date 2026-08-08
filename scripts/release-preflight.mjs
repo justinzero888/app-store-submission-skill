@@ -41,6 +41,7 @@ assert(profile.app?.iosBundleId || profile.app?.androidApplicationId, 'profile m
 
 const admob = profile.monetization?.admob;
 if (admob?.enabled) {
+  const isGoogleTestId = (value) => typeof value === 'string' && value.startsWith('ca-app-pub-3940256099942544');
   for (const [platform, id] of Object.entries(admob.applicationIds || {})) {
     assert(typeof id === 'string' && id.includes('ca-app-pub-') && id.includes('~'), `missing/invalid AdMob ${platform} application ID`, errors);
   }
@@ -49,6 +50,14 @@ if (admob?.enabled) {
     assert(id !== admob.testBannerUnitId, `${platform} production AdMob unit equals the test unit`, errors);
   }
   assert(typeof admob.testBannerUnitId === 'string' && admob.testBannerUnitId.includes('/'), 'AdMob is enabled but no test banner unit is configured', errors);
+  if (channel === 'production') {
+    for (const [platform, id] of Object.entries(admob.applicationIds || {})) {
+      if (isGoogleTestId(id)) errors.push(`production channel still uses the Google test AdMob ${platform} application ID: ${id}`);
+    }
+    for (const [platform, id] of Object.entries(admob.bannerUnitIds || {})) {
+      if (isGoogleTestId(id)) errors.push(`production channel still uses a Google test AdMob ${platform} banner unit: ${id}`);
+    }
+  }
 }
 
 const products = profile.monetization?.iap?.products || [];
@@ -71,7 +80,10 @@ if (appCheck) {
   if (admob?.enabled) {
     checkText(profile.paths.androidManifest, admob.applicationIds.android, 'Android AdMob manifest');
     checkText(profile.paths.iosInfo, admob.applicationIds.ios, 'iOS AdMob Info.plist');
-    checkText(profile.paths.iosInfo, 'NSUserTrackingUsageDescription', 'iOS ATT metadata');
+    const attPlist = readIfExists(resolvePath(appRoot, profile.paths.iosInfo));
+    const attText = attPlist?.match(/<key>NSUserTrackingUsageDescription<\/key>\s*<string>([^<]*)<\/string>/)?.[1]?.trim();
+    assert(typeof attText === 'string' && attText.length > 0, 'iOS ATT usage description is missing or empty in Info.plist', errors);
+    if (attText) warnings.push('Confirm the iOS ATT usage-description copy matches the privacy policy and review requirements.');
   }
   const strictSigning = channel === 'production' || Boolean(args['verify-signing']);
   checkFile(profile.paths.androidKeyProperties, 'Android key.properties', strictSigning);
@@ -80,7 +92,21 @@ if (appCheck) {
   if (profile.paths.androidKeyProperties && profile.signing?.android?.keyAlias) checkText(profile.paths.androidKeyProperties, `keyAlias=${profile.signing.android.keyAlias}`, 'Android key.properties');
   const gradle = readIfExists(resolvePath(appRoot, profile.paths.androidGradle));
   if (channel === 'production') {
-    assert(!/else\s*\{\s*signingConfigs\.getByName\(["']debug["']\)/s.test(gradle || ''), 'Android release build silently falls back to debug signing', errors);
+    const gradleText = gradle || '';
+    const releaseSigningPattern = /signingConfig\s*=\s*(signingConfigs\.getByName\(["']release["']\)|["']release["']|if\s*\()/;
+    const debugSigningPattern = /signingConfig\s*=\s*(signingConfigs\.getByName\(["']debug["']\)|["']debug["'])/;
+    const conditionalFallback = /if\s*\([^)]*\.exists\(\)\)[\s\S]*?signingConfigs\.getByName\(["']debug["']\)/.test(gradleText);
+    const keyMaterialPresent = Boolean(
+      profile.paths.androidKeyProperties && fs.existsSync(resolvePath(appRoot, profile.paths.androidKeyProperties)) &&
+      profile.paths.androidKeystore && fs.existsSync(resolvePath(appRoot, profile.paths.androidKeystore)),
+    );
+    if (debugSigningPattern.test(gradleText) && !releaseSigningPattern.test(gradleText) && !conditionalFallback) {
+      errors.push('Android release build is configured to use debug signing');
+    } else if (conditionalFallback && !keyMaterialPresent) {
+      errors.push('Android release build falls back to debug signing but release key material is missing');
+    } else if (conditionalFallback) {
+      warnings.push('Android release signing uses a conditional debug fallback; release signing is active because key material exists');
+    }
   }
 }
 

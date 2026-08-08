@@ -2,6 +2,17 @@
 
 The release profile is app-owned configuration. Keep it small, explicit, and free of secrets. Values that are unknown must be `null` or an empty list, not guessed.
 
+> Preflight behavior notes:
+> - AdMob `applicationIds`/`bannerUnitIds` are compared against Google's well-known
+>   test prefix (`ca-app-pub-3940256099942544`) and **block the production channel**
+>   if the app still points at test IDs.
+> - iOS AdMob requires a **non-empty** `NSUserTrackingUsageDescription` string in
+>   `Info.plist`; preflight fails if the key or its copy is missing.
+> - Android release signing is accepted when the standard Flutter conditional fallback
+>   (`if (keystorePropertiesFile.exists()) release else debug`) is present **and**
+>   the keystore + `key.properties` actually exist; only an unconditional debug
+>   signingConfig (or a fallback with missing key material) blocks production.
+
 ```json
 {
   "schemaVersion": 1,
@@ -55,8 +66,7 @@ The release profile is app-owned configuration. Keep it small, explicit, and fre
       "enabled": false,
       "products": []
     }
-  },
-  "validation": {
+  },  "validation": {
     "commands": [],
     "requiresCleanTreeForProduction": true
   },
